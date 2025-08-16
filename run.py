@@ -1,5 +1,9 @@
 from app import create_app, db
-from app.models import Game, Bet, Prediction, TeamStats, Bankroll
+from app.models.game import Game
+from app.models.bet import Bet
+from app.models.prediction import Prediction
+from app.models.team_stats import TeamStats
+from app.models.bankroll import Bankroll
 from app.ml.prediction_model import PredictionModel
 from app.ml.data_processor import DataProcessor
 from app.ml.betting_engine import BettingEngine

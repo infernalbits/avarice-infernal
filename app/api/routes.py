@@ -1,7 +1,11 @@
 from flask import Blueprint, jsonify, request
 from datetime import datetime, timedelta
 from app import db
-from app.models import Game, Bet, Prediction, TeamStats, Bankroll
+from app.models.game import Game
+from app.models.bet import Bet
+from app.models.prediction import Prediction
+from app.models.team_stats import TeamStats
+from app.models.bankroll import Bankroll
 from app.api.sports_data import SportsDataAPI
 from app.ml.prediction_model import PredictionModel
 from config import Config
