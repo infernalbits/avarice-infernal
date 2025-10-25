@@ -146,6 +146,7 @@ jspm_packages/
 
 # ML Models
 models/
+!app/models/
 *.pkl
 *.joblib
 *.h5
