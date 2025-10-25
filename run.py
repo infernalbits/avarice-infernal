@@ -13,6 +13,21 @@ from datetime import datetime, timedelta
 
 app = create_app()
 
+with app.app_context():
+    db.create_all()
+    # Create initial bankroll if it doesn't exist
+    bankroll = Bankroll.query.first()
+    if not bankroll:
+        bankroll = Bankroll(
+            current_balance=Config.INITIAL_BANKROLL,
+            starting_balance=Config.INITIAL_BANKROLL,
+            max_daily_loss=Config.INITIAL_BANKROLL * 0.1
+        )
+        db.session.add(bankroll)
+        db.session.commit()
+        print(f"Created initial bankroll: ${Config.INITIAL_BANKROLL}")
+    print("Database initialized successfully on startup!")
+
 @app.cli.command()
 def init_db():
     """Initialize the database with tables and sample data."""
@@ -172,4 +187,4 @@ def make_shell_context():
     }
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(host='0.0.0.0', port=5001)
