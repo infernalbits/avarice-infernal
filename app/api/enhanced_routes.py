@@ -7,10 +7,18 @@ from app.api.sportsradar_client import SportRadarClient
 enhanced_api_bp = Blueprint('enhanced_api', __name__)
 sportsradar_client = SportRadarClient()
 
+def validate_sport(sport):
+    if sport not in Config.SUPPORTED_SPORTS:
+        return False, f"Invalid sport: {sport}. Supported sports are: {', '.join(Config.SUPPORTED_SPORTS)}"
+    return True, None
+
 @enhanced_api_bp.route('/live-odds', methods=['GET'])
 def get_live_odds():
     """Get comprehensive live odds with market data"""
     sport = request.args.get('sport', 'americanfootball_nfl')
+    is_valid, error_msg = validate_sport(sport)
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
     
     # Generate realistic mock data
     mock_games = []
@@ -68,6 +76,9 @@ def get_live_odds():
 def get_public_betting():
     """Get public betting percentages and sharp money indicators"""
     sport = request.args.get('sport', 'americanfootball_nfl')
+    is_valid, error_msg = validate_sport(sport)
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
     
     mock_public_data = {
         'games': [
@@ -141,6 +152,9 @@ def get_public_betting():
 def get_sharp_money():
     """Get sharp money movements and steam moves"""
     sport = request.args.get('sport', 'americanfootball_nfl')
+    is_valid, error_msg = validate_sport(sport)
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
     
     mock_sharp_data = {
         'games': [
@@ -190,6 +204,9 @@ def get_sharp_money():
 def get_market_alerts():
     """Get real-time market alerts and opportunities"""
     sport = request.args.get('sport', 'americanfootball_nfl')
+    is_valid, error_msg = validate_sport(sport)
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
     
     alerts = [
         {
@@ -228,6 +245,9 @@ def get_market_alerts():
 def get_vegas_consensus():
     """Get Vegas consensus lines and closing line value"""
     sport = request.args.get('sport', 'americanfootball_nfl')
+    is_valid, error_msg = validate_sport(sport)
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
     
     vegas_data = {
         'consensusLines': {
@@ -262,7 +282,16 @@ def get_vegas_consensus():
 def get_enhanced_predictions():
     """Get predictions with enhanced features including public betting data"""
     sport = request.args.get('sport', 'americanfootball_nfl')
-    min_confidence = float(request.args.get('min_confidence', Config.MIN_CONFIDENCE_THRESHOLD))
+    is_valid, error_msg = validate_sport(sport)
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
+
+    try:
+        min_confidence = float(request.args.get('min_confidence', Config.MIN_CONFIDENCE_THRESHOLD))
+        if not (0 <= min_confidence <= 1):
+            return jsonify({'error': 'min_confidence must be between 0 and 1.'}), 400
+    except ValueError:
+        return jsonify({'error': 'Invalid format for min_confidence. Must be a number.'}), 400
     
     enhanced_predictions = [
         {
@@ -342,6 +371,9 @@ def get_enhanced_predictions():
 def get_sportsradar_teams():
     """Get real team data from SportRadar"""
     sport = request.args.get('sport', 'nfl')
+    is_valid, error_msg = validate_sport(sport)
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
     
     try:
         teams = sportsradar_client.get_team_list(sport)
@@ -353,13 +385,24 @@ def get_sportsradar_teams():
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'source': 'SportRadar'}), 500
+        # Log the exception for debugging, but return a generic error to the client
+        print(f"Error getting SportRadar teams: {e}")
+        return jsonify({'error': 'An unexpected error occurred while fetching teams.'}), 500
 
 @enhanced_api_bp.route('/sportsradar/games', methods=['GET'])
 def get_sportsradar_games():
     """Get real games data from SportRadar"""
     sport = request.args.get('sport', 'nfl')
-    days_ahead = int(request.args.get('days', 7))
+    is_valid, error_msg = validate_sport(sport)
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
+
+    try:
+        days_ahead = int(request.args.get('days', 7))
+        if days_ahead <= 0:
+            return jsonify({'error': 'days_ahead must be a positive integer.'}), 400
+    except ValueError:
+        return jsonify({'error': 'Invalid format for days_ahead. Must be an integer.'}), 400
     
     try:
         games = []
@@ -401,13 +444,20 @@ def get_sportsradar_games():
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'source': 'SportRadar'}), 500
+        print(f"Error getting SportRadar games: {e}")
+        return jsonify({'error': 'An unexpected error occurred while fetching games.'}), 500
 
 @enhanced_api_bp.route('/sportsradar/standings', methods=['GET'])
 def get_sportsradar_standings():
     """Get real standings from SportRadar"""
     sport = request.args.get('sport', 'nfl')
+    is_valid, error_msg = validate_sport(sport)
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
+
     season = request.args.get('season', '2024')
+    if not season.isdigit() or len(season) != 4:
+        return jsonify({'error': 'Invalid season format. Must be a 4-digit year.'}), 400
     
     try:
         if sport == 'nfl':
@@ -426,13 +476,23 @@ def get_sportsradar_standings():
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'source': 'SportRadar'}), 500
+        print(f"Error getting SportRadar standings: {e}")
+        return jsonify({'error': 'An unexpected error occurred while fetching standings.'}), 500
 
 @enhanced_api_bp.route('/sportsradar/team-stats/<team_id>', methods=['GET'])
 def get_sportsradar_team_stats(team_id):
     """Get comprehensive team statistics from SportRadar"""
     sport = request.args.get('sport', 'nfl')
+    is_valid, error_msg = validate_sport(sport)
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
+
     season = request.args.get('season', '2024')
+    if not season.isdigit() or len(season) != 4:
+        return jsonify({'error': 'Invalid season format. Must be a 4-digit year.'}), 400
+
+    if not isinstance(team_id, str) or not team_id:
+        return jsonify({'error': 'team_id must be a non-empty string.'}), 400
     
     try:
         team_data = sportsradar_client.get_comprehensive_team_data(sport, team_id, season)
@@ -442,12 +502,19 @@ def get_sportsradar_team_stats(team_id):
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'source': 'SportRadar'}), 500
+        print(f"Error getting SportRadar team stats: {e}")
+        return jsonify({'error': 'An unexpected error occurred while fetching team statistics.'}), 500
 
 @enhanced_api_bp.route('/sportsradar/live-game/<game_id>', methods=['GET'])
 def get_sportsradar_live_game(game_id):
     """Get live game data from SportRadar"""
     sport = request.args.get('sport', 'nfl')
+    is_valid, error_msg = validate_sport(sport)
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
+
+    if not isinstance(game_id, str) or not game_id:
+        return jsonify({'error': 'game_id must be a non-empty string.'}), 400
     
     try:
         live_data = sportsradar_client.get_live_game_summary(sport, game_id)
@@ -457,7 +524,8 @@ def get_sportsradar_live_game(game_id):
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'source': 'SportRadar'}), 500
+        print(f"Error getting SportRadar live game data: {e}")
+        return jsonify({'error': 'An unexpected error occurred while fetching live game data.'}), 500
 
 # Specialized endpoints for unique sports
 @enhanced_api_bp.route('/sportsradar/tennis/tournaments', methods=['GET'])
@@ -473,11 +541,14 @@ def get_tennis_tournaments():
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'source': 'SportRadar'}), 500
+        print(f"Error getting SportRadar tennis tournaments: {e}")
+        return jsonify({'error': 'An unexpected error occurred while fetching tennis tournaments.'}), 500
 
 @enhanced_api_bp.route('/sportsradar/tennis/matches/<tournament_id>', methods=['GET'])
 def get_tennis_matches(tournament_id):
     """Get tennis matches for a tournament"""
+    if not isinstance(tournament_id, str) or not tournament_id:
+        return jsonify({'error': 'tournament_id must be a non-empty string.'}), 400
     try:
         matches = sportsradar_client.get_tennis_matches(tournament_id)
         return jsonify({
@@ -489,7 +560,8 @@ def get_tennis_matches(tournament_id):
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'source': 'SportRadar'}), 500
+        print(f"Error getting SportRadar tennis matches: {e}")
+        return jsonify({'error': 'An unexpected error occurred while fetching tennis matches.'}), 500
 
 @enhanced_api_bp.route('/sportsradar/mma/events', methods=['GET'])
 def get_mma_events():
@@ -504,11 +576,14 @@ def get_mma_events():
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'source': 'SportRadar'}), 500
+        print(f"Error getting SportRadar MMA events: {e}")
+        return jsonify({'error': 'An unexpected error occurred while fetching MMA events.'}), 500
 
 @enhanced_api_bp.route('/sportsradar/mma/fights/<event_id>', methods=['GET'])
 def get_mma_fights(event_id):
     """Get MMA fights for an event"""
+    if not isinstance(event_id, str) or not event_id:
+        return jsonify({'error': 'event_id must be a non-empty string.'}), 400
     try:
         fights = sportsradar_client.get_mma_fights(event_id)
         return jsonify({
@@ -520,12 +595,15 @@ def get_mma_fights(event_id):
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'source': 'SportRadar'}), 500
+        print(f"Error getting SportRadar MMA fights: {e}")
+        return jsonify({'error': 'An unexpected error occurred while fetching MMA fights.'}), 500
 
 @enhanced_api_bp.route('/sportsradar/nascar/races', methods=['GET'])
 def get_nascar_races():
     """Get NASCAR races from SportRadar"""
     season = request.args.get('season', '2024')
+    if not season.isdigit() or len(season) != 4:
+        return jsonify({'error': 'Invalid season format. Must be a 4-digit year.'}), 400
     try:
         races = sportsradar_client.get_nascar_races(season)
         return jsonify({
@@ -537,7 +615,8 @@ def get_nascar_races():
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'source': 'SportRadar'}), 500
+        print(f"Error getting SportRadar NASCAR races: {e}")
+        return jsonify({'error': 'An unexpected error occurred while fetching NASCAR races.'}), 500
 
 @enhanced_api_bp.route('/sportsradar/golf/tournaments', methods=['GET'])
 def get_golf_tournaments():
@@ -552,11 +631,14 @@ def get_golf_tournaments():
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'source': 'SportRadar'}), 500
+        print(f"Error getting SportRadar golf tournaments: {e}")
+        return jsonify({'error': 'An unexpected error occurred while fetching golf tournaments.'}), 500
 
 @enhanced_api_bp.route('/sportsradar/golf/leaderboard/<tournament_id>', methods=['GET'])
 def get_golf_leaderboard(tournament_id):
     """Get golf tournament leaderboard"""
+    if not isinstance(tournament_id, str) or not tournament_id:
+        return jsonify({'error': 'tournament_id must be a non-empty string.'}), 400
     try:
         leaderboard = sportsradar_client.get_golf_leaderboard(tournament_id)
         return jsonify({
@@ -568,4 +650,5 @@ def get_golf_leaderboard(tournament_id):
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'source': 'SportRadar'}), 500
+        print(f"Error getting SportRadar golf leaderboard: {e}")
+        return jsonify({'error': 'An unexpected error occurred while fetching golf leaderboard.'}), 500

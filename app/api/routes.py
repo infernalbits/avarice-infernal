@@ -182,13 +182,34 @@ def place_bet():
     """Place a new bet (simulation)"""
     try:
         data = request.json
-        
+
         # Validate required fields
         required_fields = ['game_id', 'bet_type', 'bet_value', 'odds', 'stake', 'confidence_score']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
-        
+
+        # Validate data types and values
+        try:
+            game_id = str(data['game_id'])
+            bet_type = str(data['bet_type'])
+            bet_value = str(data['bet_value'])
+            odds = float(data['odds'])
+            stake = float(data['stake'])
+            confidence_score = float(data['confidence_score'])
+            predicted_probability = float(data.get('predicted_probability', 0.5))
+        except ValueError:
+            return jsonify({'error': 'Invalid data type for one or more fields.'}), 400
+
+        if stake <= 0:
+            return jsonify({'error': 'Stake must be a positive number.'}), 400
+        if not (0 <= confidence_score <= 1):
+            return jsonify({'error': 'Confidence score must be between 0 and 1.'}), 400
+
+        allowed_bet_types = ['moneyline', 'spread', 'total']
+        if bet_type not in allowed_bet_types:
+            return jsonify({'error': f'Invalid bet type. Allowed types are: {", ".join(allowed_bet_types)}'}), 400
+
         # Get or create bankroll
         bankroll = Bankroll.query.first()
         if not bankroll:
@@ -199,41 +220,43 @@ def place_bet():
             )
             db.session.add(bankroll)
             db.session.commit()
-        
+
         # Check if bet can be placed
-        can_bet, message = bankroll.can_place_bet(data['stake'])
+        can_bet, message = bankroll.can_place_bet(stake)
         if not can_bet:
             return jsonify({'error': message}), 400
-        
+
         # Get game
-        game = Game.query.filter_by(external_id=data['game_id']).first()
+        game = Game.query.filter_by(external_id=game_id).first()
         if not game:
             return jsonify({'error': 'Game not found'}), 404
-        
+
         # Create bet
         bet = Bet(
-            game_id=data['game_id'],
+            game_id=game_id,
             sport=game.sport,
-            bet_type=data['bet_type'],
-            bet_value=data['bet_value'],
-            odds=data['odds'],
-            stake=data['stake'],
-            predicted_probability=data.get('predicted_probability', 0.5),
-            confidence_score=data['confidence_score'],
+            bet_type=bet_type,
+            bet_value=bet_value,
+            odds=odds,
+            stake=stake,
+            predicted_probability=predicted_probability,
+            confidence_score=confidence_score,
             game_start_time=game.commence_time
         )
-        
+
         db.session.add(bet)
         db.session.commit()
-        
+
         return jsonify({
             'message': 'Bet placed successfully',
             'bet': bet.to_dict()
         }), 201
-        
+
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        # Log the exception for debugging, but return a generic error to the client
+        print(f"Error placing bet: {e}")
+        return jsonify({'error': 'An unexpected error occurred while placing the bet.'}), 500
 
 @api_bp.route('/bankroll', methods=['GET'])
 def get_bankroll():
