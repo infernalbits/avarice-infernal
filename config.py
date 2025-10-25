@@ -19,7 +19,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Application Configuration
-    SECRET_KEY = os.getenv('FLASK_SECRET')
+    SECRET_KEY = os.getenv('SECRET_KEY')
     if not SECRET_KEY:
         raise ValueError("No SECRET_KEY set for Flask application. Set it in .env or environment variables.")
     
